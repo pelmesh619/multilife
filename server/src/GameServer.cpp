@@ -52,11 +52,10 @@ namespace multilife
 
     void GameServer::onTick() {
         std::vector<PlayerCommand> batch;
-        PlayerCommand              cmd;
+        PlayerCommand cmd;
         while (m_commandQueue.tryPop(cmd)) {
             batch.push_back(std::move(cmd));
         }
-
         if (!batch.empty()) {
             m_threadPool.enqueue([this, localBatch = std::move(batch)]() mutable {
                 world().applyCommands(localBatch);
@@ -98,4 +97,3 @@ namespace multilife
     }
 
 } // namespace multilife
-
