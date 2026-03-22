@@ -48,27 +48,19 @@ namespace multilife
     }
 
     void ThreadPool::workerLoop() {
-        for (;;) {
-            std::function<void()> task;
+        while (true) {
+            std::packaged_task<void()> task;
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                m_cv.wait(lock, [this]() {
-                    return m_stopping.load(std::memory_order_relaxed) || !m_tasks.empty();
+                m_cv.wait(lock, [this] {
+                    return m_stopping.load() || !m_tasks.empty();
                 });
-
-                if (m_stopping.load(std::memory_order_relaxed) && m_tasks.empty()) {
-                    return;
-                }
-
+                if (m_stopping && m_tasks.empty()) return;
                 task = std::move(m_tasks.front());
                 m_tasks.pop();
             }
-
-            if (task) {
-                task();
-            }
+            task();
         }
     }
 
 } // namespace multilife
-
