@@ -87,6 +87,35 @@ TEST(GameServerTest, CommandsFromNetworkReachWorld) {
     delete server;
 }
 
+TEST(GameServerTest, MultipleCommandsFromNetworkAllApplied) {
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(500));
+    server->start(0);
+
+    // 2x2 block
+    stub->injectCommands({
+        {1, CommandType::PlaceCell, 10, 10},
+        {2, CommandType::PlaceCell, 11, 10},
+        {3, CommandType::PlaceCell, 10, 11},
+        {4, CommandType::PlaceCell, 11, 11},
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    server->stop();
+
+    const Chunk* chunk = server->world().tryGetChunk({0, 0});
+    ASSERT_NE(chunk, nullptr);
+    EXPECT_TRUE(chunk->getCell(10, 10).alive);
+    EXPECT_TRUE(chunk->getCell(11, 10).alive);
+    EXPECT_TRUE(chunk->getCell(10, 11).alive);
+    EXPECT_TRUE(chunk->getCell(11, 11).alive);
+    EXPECT_EQ(chunk->getCell(10, 10).owner, 1u);
+    EXPECT_EQ(chunk->getCell(11, 10).owner, 2u);
+    EXPECT_EQ(chunk->getCell(10, 11).owner, 3u);
+    EXPECT_EQ(chunk->getCell(11, 11).owner, 4u);
+
+    delete server;
+}
+
 // Resource distribution via tick
 
 TEST(GameServerTest, LiveCellsAwardResourcesOverTime) {
