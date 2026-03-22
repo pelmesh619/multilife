@@ -57,39 +57,44 @@ namespace multilife
             batch.push_back(std::move(cmd));
         }
         if (!batch.empty()) {
-            m_threadPool.enqueue([this, localBatch = std::move(batch)]() mutable {
-                world().applyCommands(localBatch);
-            });
+            world().applyCommands(batch);
         }
 
         world().exchangeBorders();
 
         auto chunks = world().allChunks();
-        for (Chunk* chunk : chunks) {
-            if (!chunk) {
-                continue;
+
+        {
+            std::vector<std::future<void>> futures;
+            futures.reserve(chunks.size());
+            for (Chunk* chunk : chunks) {
+                if (chunk) {
+                    futures.push_back(m_threadPool.enqueue([chunk]() {
+                        chunk->calculateNext();
+                    }));
+                }
             }
-            m_threadPool.enqueue([chunk]() {
-                chunk->calculateNext();
-            });
+            // wait for every calculateNext() to finish before any swapBuffers()
+            for (auto& f : futures) f.get();
         }
 
-        for (Chunk* chunk : chunks) {
-            if (!chunk) {
-                continue;
+        {
+            std::vector<std::future<void>> futures;
+            futures.reserve(chunks.size());
+            for (Chunk* chunk : chunks) {
+                if (chunk) {
+                    futures.push_back(m_threadPool.enqueue([chunk]() {
+                        chunk->swapBuffers();
+                    }));
+                }
             }
-            m_threadPool.enqueue([chunk]() {
-                chunk->swapBuffers();
-            });
+            for (auto& f : futures) f.get();
         }
 
         std::unordered_map<PlayerId, std::uint64_t> totalCounts;
         for (Chunk* chunk : chunks) {
-            if (!chunk) {
-                continue;
-            }
-            auto counts = chunk->getLiveCountByPlayer();
-            for (const auto& [playerId, count] : counts) {
+            if (!chunk) continue;
+            for (const auto& [playerId, count] : chunk->getLiveCountByPlayer()) {
                 totalCounts[playerId] += count;
             }
         }
