@@ -11,7 +11,7 @@ TEST(WorldTest, GetOrCreateChunkReturnsChunk) {
     World world;
     ChunkCoord coord{0, 0};
     Chunk& chunk = world.getOrCreateChunk(coord);
-    EXPECT_FALSE(chunk.getCell(0, 0).adlive);
+    EXPECT_FALSE(chunk.getCell(0, 0).alive);
 }
 
 TEST(WorldTest, GetOrCreateChunkReturnsSameChunkOnRepeatCalls) {
