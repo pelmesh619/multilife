@@ -30,13 +30,10 @@ namespace multilife
     }
 
     void ThreadPool::shutdown() {
-        bool expected = false;
-        if (!m_stopping.compare_exchange_strong(expected, true)) {
-            return;
-        }
-
         {
             std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_stopping) return;
+            m_stopping = true;
         }
         m_cv.notify_all();
 
