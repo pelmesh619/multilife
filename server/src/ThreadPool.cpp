@@ -4,13 +4,9 @@ namespace multilife
 {
 
     ThreadPool::ThreadPool(std::size_t threadCount) {
-        if (threadCount == 0) {
-            threadCount = 1;
-        }
-
         m_workers.reserve(threadCount);
         for (std::size_t i = 0; i < threadCount; ++i) {
-            m_workers.emplace_back([this]() { workerLoop(); });
+            m_workers.emplace_back([this] { workerLoop(); });
         }
     }
 
