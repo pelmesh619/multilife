@@ -86,3 +86,67 @@ TEST(GameServerTest, CommandsFromNetworkReachWorld) {
 
     delete server;
 }
+
+// Resource distribution via tick
+
+TEST(GameServerTest, LiveCellsAwardResourcesOverTime) {
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(50));
+    server->start(0);
+
+    // 2x2 block for player 1
+    stub->injectCommands({
+        {1, CommandType::PlaceCell, 10, 10},
+        {1, CommandType::PlaceCell, 11, 10},
+        {1, CommandType::PlaceCell, 10, 11},
+        {1, CommandType::PlaceCell, 11, 11},
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    server->stop();
+
+    // ~8 ticks * 4 cells >= 32 resources
+    EXPECT_GT(server->resources().getBalance(1), 32u);
+
+    delete server;
+}
+
+// Tick simulation correctness
+
+TEST(GameServerTest, BlinkerOscillatesOverTicks) {
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(100));
+    server->start(0);
+
+    // Horizontal blinker
+    stub->injectCommands({
+        {1, CommandType::PlaceCell, 5, 5},
+        {1, CommandType::PlaceCell, 6, 5},
+        {1, CommandType::PlaceCell, 7, 5},
+    });
+
+    // Tick 1 applies commands, tick 2 simulates -> vertical blinker.
+    std::this_thread::sleep_for(std::chrono::milliseconds(250)); // ~2 ticks
+
+    {
+        const Chunk* chunk = server->world().tryGetChunk({0, 0});
+        ASSERT_NE(chunk, nullptr);
+        EXPECT_TRUE(chunk->getCell(6, 4).alive);
+        EXPECT_TRUE(chunk->getCell(6, 5).alive);
+        EXPECT_TRUE(chunk->getCell(6, 6).alive);
+        EXPECT_FALSE(chunk->getCell(5, 5).alive);
+        EXPECT_FALSE(chunk->getCell(7, 5).alive);
+    }
+
+    // 1 tick
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
+    server->stop();
+
+    {
+        const Chunk* chunk = server->world().tryGetChunk({0, 0});
+        ASSERT_NE(chunk, nullptr);
+        EXPECT_TRUE(chunk->getCell(5, 5).alive);
+        EXPECT_TRUE(chunk->getCell(6, 5).alive);
+        EXPECT_TRUE(chunk->getCell(7, 5).alive);
+    }
+
+    delete server;
+}
