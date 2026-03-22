@@ -1,12 +1,13 @@
 #pragma once
 
-#include <vector>
-#include <thread>
-#include <mutex>
+#include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <future>
+#include <mutex>
 #include <queue>
-#include <atomic>
+#include <thread>
+#include <vector>
 
 namespace multilife
 {
@@ -17,10 +18,7 @@ namespace multilife
         explicit ThreadPool(std::size_t threadCount = std::thread::hardware_concurrency());
         ~ThreadPool();
 
-        ThreadPool(const ThreadPool&) = delete;
-        ThreadPool& operator=(const ThreadPool&) = delete;
-
-        void enqueue(std::function<void()> task);
+        std::future<void> enqueue(std::function<void()> task);
 
         void shutdown();
 
@@ -28,11 +26,10 @@ namespace multilife
         void workerLoop();
 
         std::vector<std::thread> m_workers;
-        std::queue<std::function<void()>> m_tasks;
+        std::queue<std::packaged_task<void()>> m_tasks;
         std::mutex m_mutex;
         std::condition_variable m_cv;
         std::atomic<bool> m_stopping{false};
     };
 
 } // namespace multilife
-
