@@ -9,23 +9,16 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Suppress the removed FindBoost module warning on CMake 4.x
+cmake_policy(SET CMP0167 NEW)
+
 if(WIN32)
-  add_definitions(-D_WIN32_WINNT=0x0A00)
-  add_definitions(-DNOMINMAX)
-  add_definitions(-DUNICODE -D_UNICODE)
+  add_compile_definitions(_WIN32_WINNT=0x0A00 NOMINMAX UNICODE _UNICODE)
 endif()
 
 # Boost
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-
-find_package(Boost 1.70 REQUIRED)
-
-if(Boost_FOUND)
-  message(STATUS "Boost found: ${Boost_VERSION}")
-  message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
-endif()
+find_package(Boost 1.70 REQUIRED CONFIG COMPONENTS headers)
+message(STATUS "Boost found: ${Boost_VERSION}")
 
 # Google Test
 include(FetchContent)
@@ -52,15 +45,10 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   Boost::headers
-  # Link specific Boost libs when needed, e.g.:
-  # Boost::system
-  # Boost::filesystem
-  # Boost::asio
 )
 
 
@@ -68,13 +56,22 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 enable_testing()
 
 add_executable(${PROJECT_NAME}_tests
-  tests/example_test.cpp
-  # Add more test sources here
+  tests/test_chunk.cpp
+  tests/test_world.cpp
+  tests/test_resource_manager.cpp
+  tests/test_thread_safe_queue.cpp
+  tests/test_thread_pool.cpp
+  tests/test_game_server.cpp
+  src/ThreadPool.cpp
+  src/TickScheduler.cpp
+  src/ResourceManager.cpp
+  src/Chunk.cpp
+  src/World.cpp
+  src/GameServer.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${Boost_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE
