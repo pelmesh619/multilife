@@ -179,3 +179,21 @@ TEST(GameServerTest, BlinkerOscillatesOverTicks) {
 
     delete server;
 }
+
+// Accessors
+
+TEST(GameServerTest, WorldAccessorReturnsConsistentReference) {
+    auto [server, stub] = makeServer();
+    World& w1 = server->world();
+    World& w2 = server->world();
+    EXPECT_EQ(&w1, &w2);
+    delete server;
+}
+
+TEST(GameServerTest, ResourcesAccessorReturnsConsistentReference) {
+    auto [server, stub] = makeServer();
+    ResourceManager& r1 = server->resources();
+    ResourceManager& r2 = server->resources();
+    EXPECT_EQ(&r1, &r2);
+    delete server;
+}
