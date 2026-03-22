@@ -18,15 +18,15 @@ namespace multilife
         shutdown();
     }
 
-    void ThreadPool::enqueue(std::function<void()> task) {
+    std::future<void> ThreadPool::enqueue(std::function<void()> task) {
+        std::packaged_task<void()> pt(std::move(task));
+        std::future<void> future = pt.get_future();
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            if (m_stopping.load(std::memory_order_relaxed)) {
-                return;
-            }
-            m_tasks.push(std::move(task));
+            m_tasks.push(std::move(pt));
         }
         m_cv.notify_one();
+        return future;
     }
 
     void ThreadPool::shutdown() {
