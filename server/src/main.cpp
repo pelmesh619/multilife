@@ -1,5 +1,6 @@
 #include "GameServer.hpp"
 #include "NetworkManager.hpp"
+#include "BoostNetworkManager.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -39,15 +40,16 @@ namespace multilife
 int main() {
     using namespace std::chrono_literals;
 
-    auto networkManager = std::make_unique<multilife::DummyNetworkManager>();
+    auto networkManager = std::make_unique<multilife::BoostNetworkManager>();
     multilife::GameServer server(std::move(networkManager),
                                  /*workerThreads*/ 4,
                                  std::chrono::milliseconds{100});
 
     server.start(9000);
 
-    std::cout << "Server running for a short demo...\n";
-    std::this_thread::sleep_for(1s);
+    while (server.isRunning()) {
+        std::this_thread::sleep_for(100ms);
+    }
 
     server.stop();
     std::cout << "Server stopped.\n";
