@@ -41,15 +41,25 @@ add_executable(${PROJECT_NAME}
   src/Chunk.cpp
   src/World.cpp
   src/GameServer.cpp
+  src/BoostNetworkManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-  Boost::headers
-)
+
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+    Boost::headers
+    ws2_32
+    mswsock
+  )
+else()
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+    Boost::headers
+  )
+endif()
 
 
 # Unit tests
@@ -62,22 +72,34 @@ add_executable(${PROJECT_NAME}_tests
   tests/test_thread_safe_queue.cpp
   tests/test_thread_pool.cpp
   tests/test_game_server.cpp
+  tests/test_network_manager.cpp
   src/ThreadPool.cpp
   src/TickScheduler.cpp
   src/ResourceManager.cpp
   src/Chunk.cpp
   src/World.cpp
   src/GameServer.cpp
+  src/BoostNetworkManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME}_tests PRIVATE
-  GTest::gtest_main
-  Boost::headers
-)
+
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME}_tests PRIVATE
+    GTest::gtest_main
+    Boost::headers
+    ws2_32
+    mswsock
+  )
+else()
+  target_link_libraries(${PROJECT_NAME}_tests PRIVATE
+    GTest::gtest_main
+    Boost::headers
+  )
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME}_tests)
