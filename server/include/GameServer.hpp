@@ -5,9 +5,11 @@
 #include "ThreadSafeQueue.hpp"
 #include "ThreadPool.hpp"
 #include "World.hpp"
+#include "WorldSerializer.hpp"
 #include "ResourceManager.hpp"
 #include "TickScheduler.hpp"
 #include "NetworkManager.hpp"
+#include "BoostNetworkManager.hpp"
 
 #include <memory>
 #include <atomic>
@@ -54,6 +56,8 @@ namespace multilife
 
         ThreadSafeQueue<PlayerCommand>  m_commandQueue;
         std::atomic<bool>               m_running{false};
+
+        std::uint32_t m_broadcastSeq{0};
     };
 
 } // namespace multilife
