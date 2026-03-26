@@ -33,6 +33,12 @@ namespace multilife
 
         void clear();
 
+        struct DirtyCell { std::uint8_t x, y; };
+
+        bool isDirty() const { return !m_dirtyCells.empty(); }
+        const std::vector<DirtyCell>& dirtyCells() const { return m_dirtyCells; }
+        void clearDirty() { m_dirtyCells.clear(); }
+
     private:
         using Buffer = std::array<CellState, TotalCells>;
 
@@ -43,6 +49,7 @@ namespace multilife
 
         std::uint8_t m_currentBufferIndex{0};
         Buffer m_buffers[2]{};
+        std::vector<DirtyCell> m_dirtyCells;
     };
 
 } // namespace multilife

@@ -10,11 +10,14 @@ namespace multilife
         return buffer[index(storageX, storageY)];
     }
 
-    void Chunk::setCell(std::size_t x, std::size_t y, const CellState& state) noexcept {
-        const std::size_t storageX = x + GhostBorder;
-        const std::size_t storageY = y + GhostBorder;
-        auto& buffer = m_buffers[m_currentBufferIndex];
-        buffer[index(storageX, storageY)] = state;
+    void Chunk::setCell(std::size_t x, std::size_t y, const CellState& state) {
+        const std::size_t idx = toIndex(
+            x + GhostBorder, y + GhostBorder, TotalWidth);
+        m_buffers[m_currentBufferIndex][idx] = state;
+        m_dirtyCells.push_back({
+            static_cast<std::uint8_t>(x),
+            static_cast<std::uint8_t>(y)
+        });
     }
 
     CellState Chunk::getGhostCell(std::size_t storageX, std::size_t storageY) const noexcept {
@@ -100,6 +103,7 @@ namespace multilife
             buffer.fill(CellState{});
         }
         m_currentBufferIndex = 0;
+        clearDirty();
     }
 
 } // namespace multilife
