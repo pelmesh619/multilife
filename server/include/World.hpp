@@ -27,6 +27,7 @@ namespace multilife
         void exchangeBorders();
 
         std::vector<Chunk*> allChunks();
+        std::vector<std::pair<ChunkCoord, Chunk*>> allChunksWithCoords();
 
     private:
         using ChunkMap = std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash>;

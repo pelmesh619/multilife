@@ -73,7 +73,7 @@ namespace multilife
 
     std::vector<Chunk*> World::allChunks() {
         std::shared_lock<std::shared_mutex> lock(m_mutex);
-        std::vector<Chunk*>                  result;
+        std::vector<Chunk*> result;
         result.reserve(m_chunks.size());
         for (auto& [coord, chunkPtr] : m_chunks) {
             (void)coord;
@@ -89,6 +89,15 @@ namespace multilife
             it                 = insertIt;
         }
         return *it->second;
+    }
+
+    std::vector<std::pair<ChunkCoord, Chunk*>> World::allChunksWithCoords() {
+        std::shared_lock<std::shared_mutex> lock(m_mutex);
+        std::vector<std::pair<ChunkCoord, Chunk*>> result;
+        result.reserve(m_chunks.size());
+        for (auto& [coord, chunkPtr] : m_chunks)
+            result.emplace_back(coord, chunkPtr.get());
+        return result;
     }
 
 } // namespace multilife
