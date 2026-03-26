@@ -27,6 +27,13 @@ namespace multilife
             m_networkManager->start(port);
         }
 
+        if (auto* bnm = dynamic_cast<BoostNetworkManager*>(m_networkManager.get())) {
+            bnm->setFullSnapshotProvider([this](std::uint32_t seqNum) {
+                auto chunks = m_world.allChunksWithCoords();
+                return WorldSerializer::serializeFull(seqNum, chunks);
+            });
+        }
+
         m_tickScheduler.start();
     }
 
@@ -51,6 +58,7 @@ namespace multilife
     }
 
     void GameServer::onTick() {
+        ++m_broadcastSeq;
         std::vector<PlayerCommand> batch;
         PlayerCommand cmd;
         while (m_commandQueue.tryPop(cmd)) {
@@ -99,6 +107,13 @@ namespace multilife
             }
         }
         m_resourceManager.awardFromLiveCounts(totalCounts);
+
+        if (m_networkManager) {
+            auto chunks = m_world.allChunksWithCoords();
+            auto update = WorldSerializer::serializeDelta(m_broadcastSeq, chunks);
+            if (!update.data.empty())
+                m_networkManager->broadcastWorldUpdate(update);
+        }
     }
 
 } // namespace multilife
