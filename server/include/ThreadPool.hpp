@@ -21,6 +21,7 @@ namespace multilife
         std::future<void> enqueue(std::function<void()> task);
 
         void shutdown();
+        size_t size() { return m_workers.size(); }
 
     private:
         void workerLoop();
