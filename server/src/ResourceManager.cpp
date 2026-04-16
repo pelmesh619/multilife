@@ -3,6 +3,12 @@
 namespace multilife
 {
 
+    std::uint64_t ResourceManager::addPlayer(PlayerId playerId) {
+        std::unique_lock<std::shared_mutex> lock(m_mutex);
+        
+        return m_balances[playerId] = kStartBalance;
+    }
+
     std::uint64_t ResourceManager::getBalance(PlayerId playerId) const
     {
         std::shared_lock<std::shared_mutex> lock(m_mutex);
