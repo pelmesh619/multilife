@@ -91,6 +91,45 @@ namespace multilife
         return *it->second;
     }
 
+    /* 
+        create neighbor chunks if some have a suspicion of giving birth
+    */
+    void World::ensureSimulationMarginUnlocked() {
+        std::vector<ChunkCoord> chunksToCreate;
+
+        for (const auto& [coord, chunkPtr] : m_chunks) {
+            bool hasLiveCells = false;
+            for (std::size_t y = 0; y < ChunkHeight && !hasLiveCells; ++y) {
+                for (std::size_t x = 0; x < ChunkWidth; ++x) {
+                    if (chunkPtr->getCell(x, y).alive) {
+                        hasLiveCells = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasLiveCells) {
+                continue;
+            }
+
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    if (dx == 0 && dy == 0) {
+                        continue;
+                    }
+                    const ChunkCoord neighbor{coord.x + dx, coord.y + dy};
+                    if (m_chunks.find(neighbor) == m_chunks.end()) {
+                        chunksToCreate.push_back(neighbor);
+                    }
+                }
+            }
+        }
+
+        for (const auto& coord : chunksToCreate) {
+            getOrCreateChunkUnlocked(coord);
+        }
+    }
+
     std::vector<std::pair<ChunkCoord, Chunk*>> World::allChunksWithCoords() {
         std::shared_lock<std::shared_mutex> lock(m_mutex);
         std::vector<std::pair<ChunkCoord, Chunk*>> result;
