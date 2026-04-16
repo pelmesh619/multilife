@@ -12,6 +12,10 @@
 
 namespace multilife
 {
+    constexpr uint64_t kPlaceCost = 2;
+    constexpr uint64_t kRemoveAward = 1;
+    constexpr uint64_t kAliveCellAward = 1;
+    constexpr uint64_t kStartBalance = 10;
 
     class World
     {
