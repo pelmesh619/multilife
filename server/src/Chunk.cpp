@@ -62,10 +62,19 @@ namespace multilife
                     if (neighbors < 2 || neighbors > 3) {
                         nextCell.alive = false;
                         nextCell.owner = 0;
+                        m_dirtyCells.push_back({
+                            static_cast<std::uint8_t>(x),
+                            static_cast<std::uint8_t>(y)
+                        });
                     }
                 } else {
                     if (neighbors == 3) {
                         nextCell.alive = true;
+                        nextCell.owner = nextOwner;
+                        m_dirtyCells.push_back({
+                            static_cast<std::uint8_t>(x),
+                            static_cast<std::uint8_t>(y)
+                        });
                     }
                 }
 
