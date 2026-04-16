@@ -1,4 +1,8 @@
 #include "World.hpp"
+#include "Types.hpp"
+
+#include <cstdint>
+#include <iostream>
 
 namespace multilife
 {
