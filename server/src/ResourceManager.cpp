@@ -21,11 +21,21 @@ namespace multilife
 
     bool ResourceManager::trySpend(PlayerId playerId, std::uint64_t amount) {
         std::unique_lock<std::shared_mutex> lock(m_mutex);
-        auto& balance = m_balances[playerId];
-        if (balance < amount) {
+        auto it = m_balances.find(playerId);
+        if (it == m_balances.end() || it->second < amount) {
             return false;
         }
-        balance -= amount;
+        it->second -= amount;
+        return true;
+    }
+
+    bool ResourceManager::award(PlayerId playerId, std::uint64_t amount) {
+        std::unique_lock<std::shared_mutex> lock(m_mutex);
+        auto it = m_balances.find(playerId);
+        if (it == m_balances.end()) {
+            return false;
+        }
+        it->second += amount;
         return true;
     }
 
