@@ -1,4 +1,5 @@
 #include "Chunk.hpp"
+#include <map>
 
 namespace multilife
 {
@@ -10,7 +11,7 @@ namespace multilife
         return buffer[index(storageX, storageY)];
     }
 
-    void Chunk::setCell(std::size_t x, std::size_t y, const CellState& state) {
+    void Chunk::setCell(std::size_t x, std::size_t y, const CellState& state) noexcept {
         const std::size_t idx = toIndex(
             x + GhostBorder, y + GhostBorder, TotalWidth);
         m_buffers[m_currentBufferIndex][idx] = state;
@@ -36,18 +37,29 @@ namespace multilife
 
         auto neighborAliveCount = [&](std::size_t sx, std::size_t sy) {
             std::uint32_t count = 0;
+            std::map<std::uint64_t, std::uint32_t> neighborsOwners;
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
                     if (dx == 0 && dy == 0)
                         continue;
                     const auto nx = static_cast<std::size_t>(static_cast<int>(sx) + dx);
                     const auto ny = static_cast<std::size_t>(static_cast<int>(sy) + dy);
-                    if (current[index(nx, ny)].alive) {
+                    if (current[index(nx, ny)].alive && current[index(nx, ny)].owner != 0) {
                         ++count;
+                        neighborsOwners[current[index(nx, ny)].owner] += 1;
                     }
                 }
             }
-            return count;
+
+            std::pair<std::uint64_t, std::uint32_t> nextOwner{0, 0};
+
+            for (auto m : neighborsOwners) {
+                if (m.second >= nextOwner.second) {
+                    nextOwner = {m.first, m.second};
+                }
+            }
+
+            return std::pair<std::uint32_t, std::uint64_t>{count, std::get<0>(nextOwner)};
         };
 
         for (std::size_t y = 0; y < InnerHeight; ++y) {
@@ -55,11 +67,11 @@ namespace multilife
                 const std::size_t sx          = x + GhostBorder;
                 const std::size_t sy          = y + GhostBorder;
                 const CellState& currentCell  = current[index(sx, sy)];
-                auto             neighbors    = neighborAliveCount(sx, sy);
-                CellState        nextCell     = currentCell;
+                auto [neighbors, nextOwner] = neighborAliveCount(sx, sy);
+                CellState nextCell = currentCell;
 
                 if (currentCell.alive) {
-                    if (neighbors < 2 || neighbors > 3) {
+                    if ((neighbors < 2 || neighbors > 3) && nextCell.alive) {
                         nextCell.alive = false;
                         nextCell.owner = 0;
                         m_dirtyCells.push_back({
@@ -68,7 +80,7 @@ namespace multilife
                         });
                     }
                 } else {
-                    if (neighbors == 3) {
+                    if (neighbors == 3 && !nextCell.alive) {
                         nextCell.alive = true;
                         nextCell.owner = nextOwner;
                         m_dirtyCells.push_back({
