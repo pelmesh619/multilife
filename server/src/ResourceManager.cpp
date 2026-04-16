@@ -1,4 +1,7 @@
 #include "ResourceManager.hpp"
+#include "Types.hpp"
+#include "World.hpp"
+#include <vector>
 
 namespace multilife
 {
