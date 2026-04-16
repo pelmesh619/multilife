@@ -6,6 +6,7 @@
 #include "Types.hpp"
 
 #include <cstring>
+#include <algorithm>
 #include <vector>
 
 namespace multilife {
@@ -91,32 +92,33 @@ private:
     {
         if (entries.empty()) return;
 
-        if (entries.size() > proto::kMaxCellsPerPacket)
-            entries.resize(proto::kMaxCellsPerPacket);
+        for (std::size_t offset = 0; offset < entries.size(); offset += proto::kMaxCellsPerPacket) {
+            const auto chunkSize = std::min<std::size_t>(
+                proto::kMaxCellsPerPacket,
+                entries.size() - offset);
+            const auto cellCount = static_cast<std::uint16_t>(chunkSize);
+            const std::size_t packetBytes =
+                proto::kUdpHeader + chunkSize * proto::kUdpCellEntry;
 
-        const auto cellCount = static_cast<std::uint16_t>(entries.size());
-        const std::size_t packetBytes =
-            proto::kUdpHeader + cellCount * proto::kUdpCellEntry;
+            const std::size_t base = out.data.size();
+            out.data.resize(base + packetBytes);
+            std::uint8_t* p = out.data.data() + base;
 
-        const std::size_t base = out.data.size();
-        out.data.resize(base + packetBytes);
-        std::uint8_t* p = out.data.data() + base;
+            writeLE(p + proto::kOffSeqNum, seqNum);
+            p[proto::kOffFlags] = flags;
+            writeLE(p + proto::kOffChunkX, static_cast<std::int32_t>(coord.x));
+            writeLE(p + proto::kOffChunkY, static_cast<std::int32_t>(coord.y));
+            writeLE(p + proto::kOffCellCount, cellCount);
+            p += proto::kUdpHeader;
 
-        // Write header
-        writeLE(p + proto::kOffSeqNum,    seqNum);
-        p[proto::kOffFlags]             = flags;
-        writeLE(p + proto::kOffChunkX,   static_cast<std::int32_t>(coord.x));
-        writeLE(p + proto::kOffChunkY,   static_cast<std::int32_t>(coord.y));
-        writeLE(p + proto::kOffCellCount, cellCount);
-        p += proto::kUdpHeader;
-
-        // Write cell entries
-        for (auto& e : entries) {
-            p[0] = e.x;
-            p[1] = e.y;
-            p[2] = e.alive;
-            writeLE(p + 3, e.owner);
-            p += proto::kUdpCellEntry;
+            for (std::size_t i = 0; i < chunkSize; ++i) {
+                const auto& e = entries[offset + i];
+                p[0] = e.x;
+                p[1] = e.y;
+                p[2] = e.alive;
+                writeLE(p + 3, e.owner);
+                p += proto::kUdpCellEntry;
+            }
         }
     }
 };
