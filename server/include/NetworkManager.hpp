@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PlayerCommand.hpp"
+#include "Types.hpp"
 
 #include <vector>
 #include <string>
@@ -20,7 +21,7 @@ namespace multilife
     public:
         virtual ~NetworkManager() = default;
 
-        virtual void start(std::uint16_t port) = 0;
+        virtual void start(std::uint16_t tcpPort, std::uint16_t udpPort) = 0;
 
         virtual void stop() = 0;
 
@@ -29,6 +30,7 @@ namespace multilife
         virtual void broadcastWorldUpdate(const SerializedWorldUpdate& update) = 0;
 
         virtual void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> callback) = 0;
+        virtual void setAddPlayerCallback(std::function<void(PlayerId)> callback) = 0;
     };
 
 } // namespace multilife

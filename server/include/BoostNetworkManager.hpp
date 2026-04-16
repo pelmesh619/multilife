@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -22,7 +23,7 @@ public:
     explicit BoostNetworkManager();
     ~BoostNetworkManager() override;
 
-    void start(std::uint16_t port) override;
+    void start(std::uint16_t tcpPort, std::uint16_t udpPort) override;
     void stop() override;
     void poll() override {}
 
@@ -30,6 +31,8 @@ public:
 
     void setCommandCallback(
         std::function<void(std::vector<PlayerCommand>)> callback) override;
+    void setAddPlayerCallback(
+        std::function<void(PlayerId)> callback) override;
 
     using FullSnapshotProvider = std::function<SerializedWorldUpdate(std::uint32_t seqNum)>;
     void setFullSnapshotProvider(FullSnapshotProvider provider);
@@ -68,7 +71,8 @@ private:
                        const boost::asio::ip::udp::endpoint& ep);
 
     boost::asio::io_context m_ioc;
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type>
+    std::optional<
+        boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
                                      m_work;
 
     boost::asio::ip::tcp::acceptor m_acceptor;
@@ -81,6 +85,7 @@ private:
     std::unordered_map<PlayerId, boost::asio::ip::udp::endpoint> m_udpEndpoints;
 
     std::function<void(std::vector<PlayerCommand>)> m_commandCallback;
+    std::function<void(PlayerId)> m_addPlayerCallback;
     FullSnapshotProvider m_fullSnapshotProvider;
 
     std::uint32_t m_seqNum{0};
