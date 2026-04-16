@@ -48,14 +48,15 @@ makeCommand(std::uint8_t type, PlayerId id, std::int64_t x, std::int64_t y)
 
 // Synchronous mock-client
 
-static constexpr std::uint16_t kTestPort = 19877;
+static constexpr std::uint16_t kTestTcpPort = 19877;
+static constexpr std::uint16_t kTestUdpPort = 19879;
 
 struct TestClient {
     asio::io_context ioc;
     tcp::socket      tcpSock{ioc};
     udp::socket      udpSock{ioc};
 
-    void connectTcp(std::uint16_t port = kTestPort) {
+    void connectTcp(std::uint16_t port = kTestTcpPort) {
         tcpSock.connect(boost::asio::ip::tcp::endpoint(
             boost::asio::ip::make_address("127.0.0.1"), port));
     }
@@ -115,7 +116,7 @@ protected:
         nm->setCommandCallback([this](std::vector<PlayerCommand> cmds) {
             for (auto& c : cmds) received.push_back(c);
         });
-        nm->start(kTestPort);
+        nm->start(kTestTcpPort, kTestUdpPort);
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 

@@ -68,6 +68,7 @@ TEST(ResourceManagerTest, TrySpendExactBalanceSucceeds) {
 
 TEST(ResourceManagerTest, TrySpendZeroAlwaysSucceeds) {
     ResourceManager rm;
+    rm.addPlayer(1);
     EXPECT_TRUE(rm.trySpend(1, 0));
 }
 

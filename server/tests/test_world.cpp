@@ -8,14 +8,16 @@ using namespace multilife;
 
 // Chunk creation tests
 TEST(WorldTest, GetOrCreateChunkReturnsChunk) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
     ChunkCoord coord{0, 0};
     Chunk& chunk = world.getOrCreateChunk(coord);
     EXPECT_FALSE(chunk.getCell(0, 0).alive);
 }
 
 TEST(WorldTest, GetOrCreateChunkReturnsSameChunkOnRepeatCalls) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
     ChunkCoord coord{1, 2};
     Chunk& a = world.getOrCreateChunk(coord);
     Chunk& b = world.getOrCreateChunk(coord);
@@ -23,13 +25,15 @@ TEST(WorldTest, GetOrCreateChunkReturnsSameChunkOnRepeatCalls) {
 }
 
 TEST(WorldTest, TryGetChunkReturnsNullForMissingChunk) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
     const Chunk* chunk = world.tryGetChunk({99, 99});
     EXPECT_EQ(chunk, nullptr);
 }
 
 TEST(WorldTest, TryGetChunkReturnsChunkAfterCreation) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
     ChunkCoord coord{3, 3};
     world.getOrCreateChunk(coord);
     const Chunk* chunk = world.tryGetChunk(coord);
@@ -38,8 +42,11 @@ TEST(WorldTest, TryGetChunkReturnsChunkAfterCreation) {
 
 // applyCommands: PlaceCell test
 TEST(WorldTest, PlaceCellCommandMakesCellAlive) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     PlayerCommand cmd{1, CommandType::PlaceCell, 0, 0};
+
     world.applyCommands({cmd});
     const Chunk* chunk = world.tryGetChunk({0, 0});
     ASSERT_NE(chunk, nullptr);
@@ -48,18 +55,24 @@ TEST(WorldTest, PlaceCellCommandMakesCellAlive) {
 }
 
 TEST(WorldTest, PlaceCellCommandCreatesChunkIfNeeded) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     EXPECT_EQ(world.tryGetChunk({5, 5}), nullptr);
     PlayerCommand cmd{1, CommandType::PlaceCell, 5 * ChunkWidth, 5 * ChunkHeight};
+
     world.applyCommands({cmd});
     EXPECT_NE(world.tryGetChunk({5, 5}), nullptr);
 }
 
 // applyCommands: RemoveCell test
 TEST(WorldTest, RemoveCellCommandKillsCell) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     world.applyCommands({{1, CommandType::PlaceCell, 10, 10}});
     world.applyCommands({{1, CommandType::RemoveCell, 10, 10}});
+
     const Chunk* chunk = world.tryGetChunk({0, 0});
     ASSERT_NE(chunk, nullptr);
     EXPECT_FALSE(chunk->getCell(10, 10).alive);
@@ -68,13 +81,17 @@ TEST(WorldTest, RemoveCellCommandKillsCell) {
 // applyCommands: ToggleCell
 
 TEST(WorldTest, ToggleCellTurnsDeadCellAlive) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     world.applyCommands({{1, CommandType::ToggleCell, 3, 3}});
     EXPECT_TRUE(world.tryGetChunk({0, 0})->getCell(3, 3).alive);
 }
 
 TEST(WorldTest, ToggleCellTurnsAliveCellDead) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     world.applyCommands({{1, CommandType::PlaceCell, 3, 3}});
     world.applyCommands({{1, CommandType::ToggleCell, 3, 3}});
     EXPECT_FALSE(world.tryGetChunk({0, 0})->getCell(3, 3).alive);
@@ -83,7 +100,9 @@ TEST(WorldTest, ToggleCellTurnsAliveCellDead) {
 // Coordinate mapping across chunk boundaries
 
 TEST(WorldTest, CommandAtChunkBoundaryRoutesToCorrectChunk) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     PlayerCommand cmd{1, CommandType::PlaceCell, (std::int64_t)ChunkWidth, 0};
     world.applyCommands({cmd});
     EXPECT_EQ(world.tryGetChunk({0, 0}), nullptr);  // chunk (0,0) should NOT be created
@@ -93,7 +112,9 @@ TEST(WorldTest, CommandAtChunkBoundaryRoutesToCorrectChunk) {
 }
 
 TEST(WorldTest, NegativeCoordinatesMapToCorrectChunk) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     PlayerCommand cmd{1, CommandType::PlaceCell, -1, -1};
     world.applyCommands({cmd});
     const Chunk* chunk = world.tryGetChunk({-1, -1});
@@ -104,7 +125,9 @@ TEST(WorldTest, NegativeCoordinatesMapToCorrectChunk) {
 // allChunks tests
 
 TEST(WorldTest, AllChunksReturnsAllCreatedChunks) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     world.getOrCreateChunk({0, 0});
     world.getOrCreateChunk({1, 0});
     world.getOrCreateChunk({0, 1});
@@ -113,14 +136,20 @@ TEST(WorldTest, AllChunksReturnsAllCreatedChunks) {
 }
 
 TEST(WorldTest, AllChunksReturnsEmptyWhenWorldIsEmpty) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
     EXPECT_TRUE(world.allChunks().empty());
 }
 
 // Batch commands test
 
 TEST(WorldTest, BatchCommandsAllApplied) {
-    World world;
+    ResourceManager rm;
+    World world(rm);
+    rm.addPlayer(1);
+    rm.addPlayer(2);
+    rm.addPlayer(3);
     std::vector<PlayerCommand> batch = {
         {1, CommandType::PlaceCell, 0, 0},
         {2, CommandType::PlaceCell, 1, 0},

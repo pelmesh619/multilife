@@ -16,9 +16,10 @@ using namespace multilife;
 class StubNetworkManager : public NetworkManager {
 public:
     std::function<void(std::vector<PlayerCommand>)> m_callback;
+    std::function<void(PlayerId)> m_callback2;
     std::atomic<int> broadcastCount{0};
 
-    void start(std::uint16_t) override {}
+    void start(std::uint16_t, std::uint16_t) override {}
     void stop() override {}
     void poll() override {}
 
@@ -29,6 +30,9 @@ public:
 
     void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> cb) override {
         m_callback = std::move(cb);
+    }
+    void setAddPlayerCallback(std::function<void(PlayerId)> cb) override {
+        m_callback2 = std::move(cb);
     }
 
     void injectCommands(std::vector<PlayerCommand> cmds) {
@@ -49,6 +53,10 @@ static std::pair<GameServer*, StubNetworkManager*> makeServer(
         workers,
         tickInterval
     );
+    server->networkManager().setAddPlayerCallback([&](multilife::PlayerId playerId) {
+        std::cout << "Add balance for " << playerId << '\n';
+        server->resources().addPlayer(playerId);
+    });
     return {server, stub};
 }
 
@@ -56,7 +64,7 @@ static std::pair<GameServer*, StubNetworkManager*> makeServer(
 
 TEST(GameServerTest, StartAndStopWithoutError) {
     auto [server, stub] = makeServer();
-    EXPECT_NO_THROW(server->start(0));
+    EXPECT_NO_THROW(server->start(0, 0));
     EXPECT_TRUE(server->isRunning());
     EXPECT_NO_THROW(server->stop());
     EXPECT_FALSE(server->isRunning());
@@ -73,7 +81,7 @@ TEST(GameServerTest, StopBeforeStartIsHarmless) {
 
 TEST(GameServerTest, CommandsFromNetworkReachWorld) {
     auto [server, stub] = makeServer();
-    server->start(0);
+    server->start(0, 0);
 
     stub->injectCommands({{1, CommandType::PlaceCell, 5, 5}});
 
@@ -89,7 +97,11 @@ TEST(GameServerTest, CommandsFromNetworkReachWorld) {
 
 TEST(GameServerTest, MultipleCommandsFromNetworkAllApplied) {
     auto [server, stub] = makeServer(2, std::chrono::milliseconds(500));
-    server->start(0);
+    server->start(0, 0);
+    server->resources().addPlayer(1);
+    server->resources().addPlayer(2);
+    server->resources().addPlayer(3);
+    server->resources().addPlayer(4);
 
     // 2x2 block
     stub->injectCommands({
@@ -120,7 +132,8 @@ TEST(GameServerTest, MultipleCommandsFromNetworkAllApplied) {
 
 TEST(GameServerTest, LiveCellsAwardResourcesOverTime) {
     auto [server, stub] = makeServer(2, std::chrono::milliseconds(50));
-    server->start(0);
+    server->start(0, 0);
+    server->resources().addPlayer(1);
 
     // 2x2 block for player 1
     stub->injectCommands({
@@ -143,7 +156,8 @@ TEST(GameServerTest, LiveCellsAwardResourcesOverTime) {
 
 TEST(GameServerTest, BlinkerOscillatesOverTicks) {
     auto [server, stub] = makeServer(2, std::chrono::milliseconds(100));
-    server->start(0);
+    server->start(0, 0);
+    server->resources().addPlayer(1);
 
     // Horizontal blinker
     stub->injectCommands({
@@ -175,6 +189,46 @@ TEST(GameServerTest, BlinkerOscillatesOverTicks) {
         EXPECT_TRUE(chunk->getCell(5, 5).alive);
         EXPECT_TRUE(chunk->getCell(6, 5).alive);
         EXPECT_TRUE(chunk->getCell(7, 5).alive);
+    }
+
+    delete server;
+}
+
+TEST(GameServerTest, BlinkerAcrossChunkBoundaryOscillatesOverTicks) {
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(100));
+    server->start(0, 0);
+    server->resources().addPlayer(1);
+
+    stub->injectCommands({
+        {1, CommandType::PlaceCell, 1, 0},
+        {1, CommandType::PlaceCell, 2, 0},
+        {1, CommandType::PlaceCell, 3, 0},
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+    {
+        const Chunk* northChunk = server->world().tryGetChunk({0, -1});
+        const Chunk* baseChunk = server->world().tryGetChunk({0, 0});
+        ASSERT_NE(northChunk, nullptr);
+        ASSERT_NE(baseChunk, nullptr);
+
+        EXPECT_TRUE(northChunk->getCell(2, ChunkHeight - 1).alive);
+        EXPECT_TRUE(baseChunk->getCell(2, 0).alive);
+        EXPECT_TRUE(baseChunk->getCell(2, 1).alive);
+        EXPECT_FALSE(baseChunk->getCell(1, 0).alive);
+        EXPECT_FALSE(baseChunk->getCell(3, 0).alive);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
+    server->stop();
+
+    {
+        const Chunk* baseChunk = server->world().tryGetChunk({0, 0});
+        ASSERT_NE(baseChunk, nullptr);
+        EXPECT_TRUE(baseChunk->getCell(1, 0).alive);
+        EXPECT_TRUE(baseChunk->getCell(2, 0).alive);
+        EXPECT_TRUE(baseChunk->getCell(3, 0).alive);
     }
 
     delete server;
