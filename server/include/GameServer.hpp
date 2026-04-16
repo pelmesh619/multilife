@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <atomic>
+#include <mutex>
 #include <vector>
 
 namespace multilife
@@ -29,7 +30,7 @@ namespace multilife
         GameServer(const GameServer&) = delete;
         GameServer& operator=(const GameServer&) = delete;
 
-        void start(std::uint16_t port);
+        void start(std::uint16_t tcpPort, std::uint16_t udpPort);
 
         void stop();
 
@@ -44,9 +45,18 @@ namespace multilife
             return m_resourceManager;
         }
 
+        NetworkManager& networkManager() {
+            if (!m_networkManager) {
+                throw std::runtime_error("Network manager not initialized");
+            }
+            return *m_networkManager;
+        }
+
     private:
         void onCommandsFromNetwork(std::vector<PlayerCommand> commands);
         void onTick();
+        SerializedWorldUpdate getFullSnapshotForSeq(std::uint32_t seqNum) const;
+        void refreshFullSnapshotCache();
 
         std::unique_ptr<NetworkManager> m_networkManager;
         ThreadPool                      m_threadPool;
@@ -57,6 +67,8 @@ namespace multilife
         ThreadSafeQueue<PlayerCommand>  m_commandQueue;
         std::atomic<bool>               m_running{false};
 
+        mutable std::mutex              m_fullSnapshotMutex;
+        SerializedWorldUpdate           m_cachedFullSnapshot;
         std::uint32_t m_broadcastSeq{0};
     };
 
