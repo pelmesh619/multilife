@@ -139,5 +139,40 @@ namespace multilife
         return result;
     }
 
+    void World::printDebugState() const {
+        std::shared_lock<std::shared_mutex> lock(m_mutex);
+        
+        std::cout << "=== World State ===\n";
+
+        for (const auto& id : m_resourceManager.getPlayerIds()) {
+            std::cout << "id: " << id << "; bal: " << m_resourceManager.getBalance(id) << '\n';
+        }
+
+        std::cout << "Total chunks: " << m_chunks.size() << '\n';
+        
+        for (const auto& [coord, chunk] : m_chunks) {
+            std::cout << "  Chunk [" << coord.x << ", " << coord.y << "]: ";
+            
+            std::unordered_map<std::uint64_t, int> ownerCounts;
+            int totalAlive = 0;
+            
+            for (std::size_t x = 0; x < ChunkWidth; ++x) {
+                for (std::size_t y = 0; y < ChunkHeight; ++y) {
+                    CellState cell = chunk->getCell(x, y);
+                    if (cell.alive) {
+                        totalAlive++;
+                        ownerCounts[cell.owner]++;
+                    }
+                }
+            }
+            
+            std::cout << totalAlive << " alive cells (";
+            for (const auto& [owner, count] : ownerCounts) {
+                std::cout << "P" << owner << ":" << count << " ";
+            }
+            std::cout << ")\n";
+        }
+    }
+
 } // namespace multilife
 
