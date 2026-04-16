@@ -47,16 +47,27 @@ namespace multilife
             CellState cell = chunk.getCell(localX, localY);
             switch (cmd.type) {
             case CommandType::PlaceCell:
-                cell.alive = true;
-                cell.owner = cmd.playerId;
+                if (cell.owner == 0 && m_resourceManager.trySpend(cmd.playerId, kPlaceCost)) {
+                    cell.alive = true;
+                    cell.owner = cmd.playerId;
+                }
                 break;
             case CommandType::RemoveCell:
-                cell.alive = false;
-                cell.owner = 0;
+                if (cell.owner == cmd.playerId && m_resourceManager.award(cmd.playerId, kRemoveAward)) {
+                    cell.alive = false;
+                    cell.owner = 0;
+                }
                 break;
             case CommandType::ToggleCell:
-                cell.alive = !cell.alive;
-                cell.owner = cell.alive ? cmd.playerId : 0;
+                if (cell.owner == 0 || cell.owner == cmd.playerId) {
+                    const bool canToggle =
+                        (cell.alive && m_resourceManager.award(cmd.playerId, kRemoveAward))
+                        || (!cell.alive && m_resourceManager.trySpend(cmd.playerId, kPlaceCost));
+                    if (canToggle) {
+                        cell.alive = !cell.alive;
+                        cell.owner = cell.alive ? cmd.playerId : 0;
+                    }
+                }
                 break;
             }
 
