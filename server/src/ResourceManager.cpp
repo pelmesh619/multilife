@@ -42,7 +42,7 @@ namespace multilife
     void ResourceManager::awardFromLiveCounts(const std::unordered_map<PlayerId, std::uint64_t>& liveCounts) {
         std::unique_lock<std::shared_mutex> lock(m_mutex);
         for (const auto& [playerId, live] : liveCounts) {
-            m_balances[playerId] += live;
+            m_balances[playerId] += live * kAliveCellAward;
         }
     }
 
