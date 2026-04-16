@@ -1,6 +1,7 @@
 #include "GameServer.hpp"
 #include "NetworkManager.hpp"
 #include "BoostNetworkManager.hpp"
+#include "Types.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -13,8 +14,8 @@ namespace multilife
     class DummyNetworkManager : public NetworkManager
     {
     public:
-        void start(std::uint16_t port) override {
-            std::cout << "DummyNetworkManager listening on port " << port << '\n';
+        void start(std::uint16_t tcpPort, std::uint16_t udpPort) override {
+            std::cout << "DummyNetworkManager listening on port " << tcpPort << '\n';
         }
 
         void stop() override {
@@ -43,9 +44,17 @@ int main() {
     auto networkManager = std::make_unique<multilife::BoostNetworkManager>();
     multilife::GameServer server(std::move(networkManager),
                                  /*workerThreads*/ 4,
-                                 std::chrono::milliseconds{100});
+                                 std::chrono::milliseconds{5000});
+               
+    server.networkManager().setCommandCallback([&](std::vector<multilife::PlayerCommand> cmds) {
+        server.world().applyCommands(cmds);
+    });
+    server.networkManager().setAddPlayerCallback([&](multilife::PlayerId playerId) {
+        std::cout << "Add balance for " << playerId << '\n';
+        server.resources().addPlayer(playerId);
+    });
 
-    server.start(9000);
+    server.start(9000, 9001);
 
     while (server.isRunning()) {
         std::this_thread::sleep_for(100ms);
@@ -55,4 +64,3 @@ int main() {
     std::cout << "Server stopped.\n";
     return 0;
 }
-
