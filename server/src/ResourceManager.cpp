@@ -46,5 +46,15 @@ namespace multilife
         }
     }
 
+    std::vector<PlayerId> ResourceManager::getPlayerIds() const {
+        std::unique_lock<std::shared_mutex> lock(m_mutex);
+        std::vector<PlayerId> result;
+        for (const auto& [playerId, _] : m_balances) {
+            result.push_back(playerId);
+        }
+
+        return result;
+    }
+
 } // namespace multilife
 
