@@ -66,9 +66,65 @@ namespace multilife
 
     void World::exchangeBorders() {
         std::unique_lock<std::shared_mutex> lock(m_mutex);
+        ensureSimulationMarginUnlocked();
 
-        // TODO
-        (void)lock;
+        auto getChunkPtr = [this](const ChunkCoord& coord) -> Chunk* {
+            auto it = m_chunks.find(coord);
+            return it == m_chunks.end() ? nullptr : it->second.get();
+        };
+
+        auto readOrDead = [](const Chunk* chunk, std::size_t x, std::size_t y) -> CellState {
+            return chunk ? chunk->getCell(x, y) : CellState{};
+        };
+
+        for (auto& [coord, chunkPtr] : m_chunks) {
+            Chunk& chunk = *chunkPtr;
+
+            const Chunk* north = getChunkPtr({coord.x, coord.y - 1});
+            const Chunk* south = getChunkPtr({coord.x, coord.y + 1});
+            const Chunk* west = getChunkPtr({coord.x - 1, coord.y});
+            const Chunk* east = getChunkPtr({coord.x + 1, coord.y});
+            const Chunk* northWest = getChunkPtr({coord.x - 1, coord.y - 1});
+            const Chunk* northEast = getChunkPtr({coord.x + 1, coord.y - 1});
+            const Chunk* southWest = getChunkPtr({coord.x - 1, coord.y + 1});
+            const Chunk* southEast = getChunkPtr({coord.x + 1, coord.y + 1});
+
+            for (std::size_t x = 0; x < ChunkWidth; ++x) {
+                chunk.setGhostCell(
+                    x + Chunk::GhostBorder,
+                    0,
+                    readOrDead(north, x, ChunkHeight - 1));
+                chunk.setGhostCell(
+                    x + Chunk::GhostBorder,
+                    ChunkHeight + Chunk::GhostBorder,
+                    readOrDead(south, x, 0));
+            }
+
+            for (std::size_t y = 0; y < ChunkHeight; ++y) {
+                chunk.setGhostCell(
+                    0,
+                    y + Chunk::GhostBorder,
+                    readOrDead(west, ChunkWidth - 1, y));
+                chunk.setGhostCell(
+                    ChunkWidth + Chunk::GhostBorder,
+                    y + Chunk::GhostBorder,
+                    readOrDead(east, 0, y));
+            }
+
+            chunk.setGhostCell(0, 0, readOrDead(northWest, ChunkWidth - 1, ChunkHeight - 1));
+            chunk.setGhostCell(
+                ChunkWidth + Chunk::GhostBorder,
+                0,
+                readOrDead(northEast, 0, ChunkHeight - 1));
+            chunk.setGhostCell(
+                0,
+                ChunkHeight + Chunk::GhostBorder,
+                readOrDead(southWest, ChunkWidth - 1, 0));
+            chunk.setGhostCell(
+                ChunkWidth + Chunk::GhostBorder,
+                ChunkHeight + Chunk::GhostBorder,
+                readOrDead(southEast, 0, 0));
+        }
     }
 
     std::vector<Chunk*> World::allChunks() {
