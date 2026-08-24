@@ -25,6 +25,14 @@ inline constexpr std::size_t  kCommandSize = 25;
 inline constexpr std::uint8_t kMsgResyncReq = 0x10;
 inline constexpr std::size_t  kResyncReqSize = 1;
 
+// Server stats snapshot (server -> client, TCP stream)
+// [uint8 type=0x20][uint32 generation][uint16 playerCount]
+// entries:
+// [uint64 playerId][uint64 balance][uint64 liveCells]
+inline constexpr std::uint8_t kMsgServerStats = 0x20;
+inline constexpr std::size_t  kServerStatsHeader = 7;
+inline constexpr std::size_t  kServerStatsEntry = 24;
+
 // ====== UDP ======
 
 // UDP datagram is a chunk update
