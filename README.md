@@ -125,3 +125,8 @@ ctest --test-dir build/client --output-on-failure
 ```
 
 Client UI tests use `QT_QPA_PLATFORM=offscreen`
+
+## Known issues
+
+* User-prompted player id could lead to impersonation of other players
+* Server listening ports could not be changed unless rebuilding the executable
