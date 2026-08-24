@@ -20,19 +20,18 @@ Players place and remove cells, watch generations tick on the server, and see li
 
 ## Architecture
 
-```
-Qt client  --TCP 9000-->  GameServer (Boost.Asio)
-           <--UDP 9001--    ThreadPool + TickScheduler
-                            World (chunks) + ResourceManager
-```
+Multilife uses client-server architecture:
 
-Each tick the server exchanges chunk borders, computes the next generation in parallel, then applies player commands so edits show up immediately and affect the *next* generation. Missing UDP sequence numbers can be repaired with a TCP resync request.
+* Client on Qt sends player commands via TCP
+* Server sends world updates via UDP
 
-The binary protocol is documented in [`server/include/Protocol.hpp`](server/include/Protocol.hpp) (`MLIF` magic, little-endian fields).
+Each tick the server exchanges chunk borders, computes the next generation in parallel, then applies player commands so edits show up immediately and affect the next generation. Missing UDP sequence numbers can be repaired with a TCP resync request.
+
+The binary protocol is documented in [`server/include/Protocol.hpp`](server/include/Protocol.hpp)
 
 ## Build
 
-The server and client are separate CMake projects. Currently only Linux is supported
+The server and client are separate CMake projects. Currently, only Linux is supported
 
 ### Server
 
