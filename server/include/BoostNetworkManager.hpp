@@ -28,6 +28,7 @@ public:
     void poll() override {}
 
     void broadcastWorldUpdate(const SerializedWorldUpdate& update) override;
+    void broadcastServerStats(const std::vector<std::uint8_t>& payload) override;
 
     void setCommandCallback(
         std::function<void(std::vector<PlayerCommand>)> callback) override;

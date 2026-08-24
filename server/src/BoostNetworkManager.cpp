@@ -198,6 +198,32 @@ void BoostNetworkManager::broadcastWorldUpdate(const SerializedWorldUpdate& upda
         });
 }
 
+void BoostNetworkManager::broadcastServerStats(const std::vector<std::uint8_t>& payload)
+{
+    if (payload.empty()) return;
+
+    boost::asio::post(m_ioc, [this, payload]() {
+        std::vector<SessionPtr> sessions;
+        {
+            std::lock_guard<std::mutex> lk(m_sessionsMutex);
+            sessions.reserve(m_sessions.size());
+            for (const auto& [_, session] : m_sessions) {
+                sessions.push_back(session);
+            }
+        }
+
+        for (const auto& session : sessions) {
+            if (!session) continue;
+            boost::system::error_code ec;
+            boost::asio::write(session->socket, boost::asio::buffer(payload), ec);
+            if (ec && ec != boost::asio::error::operation_aborted) {
+                std::cerr << "[BoostNetworkManager] Stats send failed to player "
+                          << session->playerId << ": " << ec.message() << '\n';
+            }
+        }
+    });
+}
+
 void BoostNetworkManager::doUdpBroadcast(
     std::vector<std::uint8_t> deltaData,
     std::uint32_t             seqNum) {

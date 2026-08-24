@@ -28,6 +28,7 @@ namespace multilife
         virtual void poll() = 0;
 
         virtual void broadcastWorldUpdate(const SerializedWorldUpdate& update) = 0;
+        virtual void broadcastServerStats(const std::vector<std::uint8_t>& payload) = 0;
 
         virtual void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> callback) = 0;
         virtual void setAddPlayerCallback(std::function<void(PlayerId)> callback) = 0;
