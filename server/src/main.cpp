@@ -1,5 +1,4 @@
 #include "GameServer.hpp"
-#include "NetworkManager.hpp"
 #include "BoostNetworkManager.hpp"
 #include "Types.hpp"
 
@@ -7,57 +6,24 @@
 #include <chrono>
 #include <thread>
 
-namespace multilife
-{
-
-    // dummy network manager that does no real io
-    class DummyNetworkManager : public NetworkManager
-    {
-    public:
-        void start(std::uint16_t tcpPort, std::uint16_t udpPort) override {
-            std::cout << "DummyNetworkManager listening on port " << tcpPort << '\n';
-        }
-
-        void stop() override {
-            std::cout << "DummyNetworkManager stopping\n";
-        }
-
-        void poll() override { }
-
-        void broadcastWorldUpdate(const SerializedWorldUpdate& update) override {
-            std::cout << "Broadcasting world update of size " << update.data.size() << " bytes\n";
-        }
-        void broadcastServerStats(const std::vector<std::uint8_t>& payload) override {
-            std::cout << "Broadcasting server stats of size " << payload.size() << " bytes\n";
-        }
-
-        void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> callback) override {
-            m_callback = std::move(callback);
-        }
-
-    private:
-        std::function<void(std::vector<PlayerCommand>)> m_callback;
-    };
-
-} // namespace multilife
-
 int main() {
     using namespace std::chrono_literals;
 
+    constexpr std::uint16_t kTcpPort = 9000;
+    constexpr std::uint16_t kUdpPort = 9001;
+    constexpr std::size_t kWorkerThreads = 4;
+    constexpr auto kTickInterval = 5s;
+
     auto networkManager = std::make_unique<multilife::BoostNetworkManager>();
-    multilife::GameServer server(std::move(networkManager),
-                                 /*workerThreads*/ 4,
-                                 std::chrono::milliseconds{5000});
-               
-    server.networkManager().setCommandCallback([&](std::vector<multilife::PlayerCommand> cmds) {
-        server.world().applyCommands(cmds);
-    });
+    multilife::GameServer server(std::move(networkManager), kWorkerThreads, kTickInterval);
+
     server.networkManager().setAddPlayerCallback([&](multilife::PlayerId playerId) {
-        std::cout << "Add balance for " << playerId << '\n';
+        std::cout << "Player " << playerId << " joined\n";
         server.resources().addPlayer(playerId);
     });
 
-    server.start(9000, 9001);
+    server.start(kTcpPort, kUdpPort);
+    std::cout << "Server listening on TCP " << kTcpPort << " / UDP " << kUdpPort << '\n';
 
     while (server.isRunning()) {
         std::this_thread::sleep_for(100ms);
