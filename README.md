@@ -6,6 +6,8 @@ Multiplayer [Conway’s Game of Life](https://en.wikipedia.org/wiki/Conway%27s_G
 
 Players place and remove cells, watch generations tick on the server, and see live updates while they pan and zoom the grid
 
+![Showcase](./client_showcase.jpg)
+
 **Features**:
 
 * Infinite world split into 64x64 chunks
