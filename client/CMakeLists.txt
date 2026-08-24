@@ -77,7 +77,7 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
 )
 
-enable_testing()
+include(CTest)
 if(BUILD_TESTING)
     add_executable(multilife-qt-client-tests
         tests/test_world_model.cpp
