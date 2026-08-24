@@ -27,6 +27,9 @@ public:
         ++broadcastCount;
         lastUpdateSize = update.data.size();
     }
+    void broadcastServerStats(const std::vector<std::uint8_t>& payload) override {
+        lastStatsSize = payload.size();
+    }
 
     void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> cb) override {
         m_callback = std::move(cb);
@@ -40,6 +43,7 @@ public:
     }
 
     std::size_t lastUpdateSize = 0;
+    std::size_t lastStatsSize = 0;
 };
 
 // Helper functions
