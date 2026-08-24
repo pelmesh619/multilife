@@ -8,6 +8,7 @@
 #include <thread>
 #include <atomic>
 #include <vector>
+#include <iostream>
 
 using namespace multilife;
 
@@ -62,6 +63,39 @@ static std::pair<GameServer*, StubNetworkManager*> makeServer(
         server->resources().addPlayer(playerId);
     });
     return {server, stub};
+}
+
+template <typename Pred>
+static bool waitUntil(Pred pred, std::chrono::milliseconds timeout = std::chrono::milliseconds(2000))
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (!pred()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return true;
+}
+
+static bool isHorizontalBlinker(const Chunk* chunk, std::size_t x, std::size_t y)
+{
+    return chunk != nullptr
+        && chunk->getCell(x - 1, y).alive
+        && chunk->getCell(x, y).alive
+        && chunk->getCell(x + 1, y).alive
+        && !chunk->getCell(x, y - 1).alive
+        && !chunk->getCell(x, y + 1).alive;
+}
+
+static bool isVerticalBlinker(const Chunk* chunk, std::size_t x, std::size_t y)
+{
+    return chunk != nullptr
+        && chunk->getCell(x, y - 1).alive
+        && chunk->getCell(x, y).alive
+        && chunk->getCell(x, y + 1).alive
+        && !chunk->getCell(x - 1, y).alive
+        && !chunk->getCell(x + 1, y).alive;
 }
 
 // Lifecycle tests
@@ -159,47 +193,30 @@ TEST(GameServerTest, LiveCellsAwardResourcesOverTime) {
 // Tick simulation correctness
 
 TEST(GameServerTest, BlinkerOscillatesOverTicks) {
-    auto [server, stub] = makeServer(2, std::chrono::milliseconds(100));
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(50));
     server->start(0, 0);
     server->resources().addPlayer(1);
 
-    // Horizontal blinker
     stub->injectCommands({
         {1, CommandType::PlaceCell, 5, 5},
         {1, CommandType::PlaceCell, 6, 5},
         {1, CommandType::PlaceCell, 7, 5},
     });
 
-    // Tick 1 applies commands, tick 2 simulates -> vertical blinker.
-    std::this_thread::sleep_for(std::chrono::milliseconds(250)); // ~2 ticks
+    auto chunk00 = [&]() { return server->world().tryGetChunk({0, 0}); };
 
-    {
-        const Chunk* chunk = server->world().tryGetChunk({0, 0});
-        ASSERT_NE(chunk, nullptr);
-        EXPECT_TRUE(chunk->getCell(6, 4).alive);
-        EXPECT_TRUE(chunk->getCell(6, 5).alive);
-        EXPECT_TRUE(chunk->getCell(6, 6).alive);
-        EXPECT_FALSE(chunk->getCell(5, 5).alive);
-        EXPECT_FALSE(chunk->getCell(7, 5).alive);
-    }
+    // Commands are applied after a simulation step, so wait for the placed
+    // horizontal blinker rather than assuming a fixed number of ticks.
+    ASSERT_TRUE(waitUntil([&] { return isHorizontalBlinker(chunk00(), 6, 5); }));
+    ASSERT_TRUE(waitUntil([&] { return isVerticalBlinker(chunk00(), 6, 5); }));
+    ASSERT_TRUE(waitUntil([&] { return isHorizontalBlinker(chunk00(), 6, 5); }));
 
-    // 1 tick
-    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     server->stop();
-
-    {
-        const Chunk* chunk = server->world().tryGetChunk({0, 0});
-        ASSERT_NE(chunk, nullptr);
-        EXPECT_TRUE(chunk->getCell(5, 5).alive);
-        EXPECT_TRUE(chunk->getCell(6, 5).alive);
-        EXPECT_TRUE(chunk->getCell(7, 5).alive);
-    }
-
     delete server;
 }
 
 TEST(GameServerTest, BlinkerAcrossChunkBoundaryOscillatesOverTicks) {
-    auto [server, stub] = makeServer(2, std::chrono::milliseconds(100));
+    auto [server, stub] = makeServer(2, std::chrono::milliseconds(50));
     server->start(0, 0);
     server->resources().addPlayer(1);
 
@@ -209,32 +226,33 @@ TEST(GameServerTest, BlinkerAcrossChunkBoundaryOscillatesOverTicks) {
         {1, CommandType::PlaceCell, 3, 0},
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
-    {
+    auto isHorizontal = [&]() {
+        const Chunk* baseChunk = server->world().tryGetChunk({0, 0});
+        const Chunk* northChunk = server->world().tryGetChunk({0, -1});
+        return baseChunk != nullptr
+            && baseChunk->getCell(1, 0).alive
+            && baseChunk->getCell(2, 0).alive
+            && baseChunk->getCell(3, 0).alive
+            && !baseChunk->getCell(2, 1).alive
+            && (northChunk == nullptr || !northChunk->getCell(2, ChunkHeight - 1).alive);
+    };
+    auto isVertical = [&]() {
         const Chunk* northChunk = server->world().tryGetChunk({0, -1});
         const Chunk* baseChunk = server->world().tryGetChunk({0, 0});
-        ASSERT_NE(northChunk, nullptr);
-        ASSERT_NE(baseChunk, nullptr);
+        return northChunk != nullptr
+            && baseChunk != nullptr
+            && northChunk->getCell(2, ChunkHeight - 1).alive
+            && baseChunk->getCell(2, 0).alive
+            && baseChunk->getCell(2, 1).alive
+            && !baseChunk->getCell(1, 0).alive
+            && !baseChunk->getCell(3, 0).alive;
+    };
 
-        EXPECT_TRUE(northChunk->getCell(2, ChunkHeight - 1).alive);
-        EXPECT_TRUE(baseChunk->getCell(2, 0).alive);
-        EXPECT_TRUE(baseChunk->getCell(2, 1).alive);
-        EXPECT_FALSE(baseChunk->getCell(1, 0).alive);
-        EXPECT_FALSE(baseChunk->getCell(3, 0).alive);
-    }
+    ASSERT_TRUE(waitUntil(isHorizontal));
+    ASSERT_TRUE(waitUntil(isVertical));
+    ASSERT_TRUE(waitUntil(isHorizontal));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     server->stop();
-
-    {
-        const Chunk* baseChunk = server->world().tryGetChunk({0, 0});
-        ASSERT_NE(baseChunk, nullptr);
-        EXPECT_TRUE(baseChunk->getCell(1, 0).alive);
-        EXPECT_TRUE(baseChunk->getCell(2, 0).alive);
-        EXPECT_TRUE(baseChunk->getCell(3, 0).alive);
-    }
-
     delete server;
 }
 
