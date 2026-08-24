@@ -1,7 +1,9 @@
 #include "GameServer.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 namespace multilife
 {
@@ -34,6 +36,41 @@ namespace multilife
                 writeLE(packet + proto::kOffSeqNum, seqNum);
                 offset += packetSize;
             }
+        }
+
+        std::vector<std::uint8_t> serializeServerStats(
+            std::uint32_t generation,
+            const ResourceManager& resources,
+            const std::unordered_map<PlayerId, std::uint64_t>& liveCounts) {
+            auto playerIds = resources.getPlayerIds();
+            std::sort(playerIds.begin(), playerIds.end());
+
+            if (playerIds.size() > std::numeric_limits<std::uint16_t>::max()) {
+                playerIds.resize(std::numeric_limits<std::uint16_t>::max());
+            }
+
+            const auto playerCount = static_cast<std::uint16_t>(playerIds.size());
+            const std::size_t size =
+                proto::kServerStatsHeader + static_cast<std::size_t>(playerCount) * proto::kServerStatsEntry;
+
+            std::vector<std::uint8_t> payload(size);
+            std::uint8_t* p = payload.data();
+            p[0] = proto::kMsgServerStats;
+            writeLE(p + 1, generation);
+            writeLE(p + 5, playerCount);
+            p += proto::kServerStatsHeader;
+
+            for (const auto playerId : playerIds) {
+                const auto balance = resources.getBalance(playerId);
+                const auto it = liveCounts.find(playerId);
+                const auto liveCells = (it == liveCounts.end()) ? 0ULL : it->second;
+                writeLE(p, playerId);
+                writeLE(p + 8, balance);
+                writeLE(p + 16, liveCells);
+                p += proto::kServerStatsEntry;
+            }
+
+            return payload;
         }
     } // namespace
 
@@ -91,24 +128,17 @@ namespace multilife
         }
     }
 
-    void GameServer::onTick() {
-        ++m_broadcastSeq;
-        std::vector<PlayerCommand> batch;
-        PlayerCommand cmd;
-        while (m_commandQueue.tryPop(cmd)) {
-            batch.push_back(std::move(cmd));
-        }
-        if (!batch.empty()) {
-            world().applyCommands(batch);
-        }
+void GameServer::onTick() {
+    ++m_broadcastSeq;
+    std::vector<PlayerCommand> batch;
+    PlayerCommand cmd;
+    while (m_commandQueue.tryPop(cmd)) {
+        batch.push_back(std::move(cmd));
+    }
 
-        if (m_broadcastSeq % 1 == 0) {
-            world().printDebugState();
-        }
+    world().exchangeBorders();
 
-        world().exchangeBorders();
-
-        auto chunks = world().allChunks();
+    auto chunks = world().allChunks();
 
         {
             std::vector<std::future<void>> futures;
@@ -137,8 +167,15 @@ namespace multilife
             for (auto& f : futures) f.get();
         }
 
+        // Player actions are applied after simulation step.
+        // This way edits are visible immediately and only affect the next tick.
+        if (!batch.empty()) {
+            world().applyCommands(batch);
+        }
+
         std::unordered_map<PlayerId, std::uint64_t> totalCounts;
-        for (Chunk* chunk : chunks) {
+        auto allChunksNow = world().allChunks();
+        for (Chunk* chunk : allChunksNow) {
             if (!chunk) continue;
             for (const auto& [playerId, count] : chunk->getLiveCountByPlayer()) {
                 totalCounts[playerId] += count;
@@ -147,11 +184,20 @@ namespace multilife
         m_resourceManager.awardFromLiveCounts(totalCounts);
         refreshFullSnapshotCache();
 
+        if (m_broadcastSeq % 1 == 0) {
+            world().printDebugState();
+        }
+
         if (m_networkManager) {
-            auto chunks = world().allChunksWithCoords();
-            auto update = WorldSerializer::serializeDelta(m_broadcastSeq, chunks);
+            auto chunksWithCoords = world().allChunksWithCoords();
+            auto update = WorldSerializer::serializeDelta(m_broadcastSeq, chunksWithCoords);
             if (!update.data.empty())
                 m_networkManager->broadcastWorldUpdate(update);
+
+            const auto statsPayload =
+                serializeServerStats(m_broadcastSeq, m_resourceManager, totalCounts);
+            if (!statsPayload.empty())
+                m_networkManager->broadcastServerStats(statsPayload);
         }
     }
 
