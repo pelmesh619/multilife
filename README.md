@@ -74,7 +74,6 @@ The server and client are separate CMake projects. Currently, only Linux is supp
 
     The server listens on TCP port 9000** and UDP port 9001
 
-
 ### Client
 
 1. Install dependencies:
