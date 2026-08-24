@@ -27,6 +27,9 @@ namespace multilife
         void broadcastWorldUpdate(const SerializedWorldUpdate& update) override {
             std::cout << "Broadcasting world update of size " << update.data.size() << " bytes\n";
         }
+        void broadcastServerStats(const std::vector<std::uint8_t>& payload) override {
+            std::cout << "Broadcasting server stats of size " << payload.size() << " bytes\n";
+        }
 
         void setCommandCallback(std::function<void(std::vector<PlayerCommand>)> callback) override {
             m_callback = std::move(callback);
